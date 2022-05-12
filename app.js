@@ -7,6 +7,7 @@ const ejsMate = require("ejs-mate");
 const morgan = require("morgan");
 const cors = require("cors");
 const Filter = require("bad-words");
+const profanity = require("profanity-hindi");
 
 // Utils imports.
 const { 
@@ -40,10 +41,6 @@ app.use(express.json());
 
 // Routes
 app.get("/", (req, res)=>{
-    res.render("index");
-});
-
-app.get("/join", (req, res)=>{
     res.render("chats/join");
 });
 
@@ -57,28 +54,49 @@ io.on("connection", (socket)=>{
     console.log("New websocket connection");
 
     // Listen for joinRequest event
-    socket.on("joinRoom", ({username, room})=>{
-        socket.join(room);
+    socket.on("joinRoom", ({username, room}, cb)=>{
+
+        const { success, error, user } = addUser({
+            id: socket.id,
+            username,
+            room
+        });
+
+        if(!success) return cb(error);
+
+        socket.join(user.room);
         console.log(socket.rooms)
+
         // Notifies the current user that he has joined the chat.
-        socket.emit("message", generateMessage("You joined the chat room.", username));
+        socket.emit("message", generateMessage("You joined the chat room.", user.username));
+
+        // Emit the roomData to the frontend
+        io.to(user.room).emit("roomData", {
+            room: user.room,
+            users: getUsersInRoom(user.room)
+        });
 
         // Notifies all other users withing the room except the one who joined the room.
-        socket.broadcast.to(room).emit("message", generateMessage(`You joined the room!`, username));
-    
+        socket.broadcast.to(room).emit("message", generateMessage(`joined the room!`, user.username));
+
+        cb();
+
         socket.on("sendMessage", ({ message, username }, cb)=>{
             const filter = new Filter();
 
-            if(filter.isProfane(message)) return cb("Profanity is not allowed !");
+            const user = getUser(socket.id);
 
-            io.to(room).emit("message",generateMessage(message, username));
+            if(filter.isProfane(message) || profanity.isMessageDirty(message)) return cb("Profanity is not allowed !");
+
+            io.to(user.room).emit("message",generateMessage(message, user.username));
 
             cb();
         });
 
         // Listen for geoLocation being sent by the client.
         socket.on("geoLocation", (locationObj, cb)=>{
-            io.to(room).emit("location", generateLocationMessage(locationObj));
+            const user = getUser(socket.id);
+            io.to(user.room).emit("location", generateLocationMessage(locationObj));
             
             cb("Your location was shared with everyone.");
         });
@@ -87,7 +105,14 @@ io.on("connection", (socket)=>{
         // Notifies everyone when a user leaves the chat.
         socket.on("disconnect", ()=>{
             console.log(socket.rooms); 
-            io.emit("message", generateMessage("Left the chat.", username));
+            const user = removeUser(socket.id);
+            if(user){
+                io.to(user.room).emit("message", generateMessage("Left the chat.", username));
+                io.to(user.room).emit("userData", {
+                    room: user.room,
+                    users: getUsersInRoom(user.room)
+                });
+            }
         });
 
     });
@@ -95,5 +120,5 @@ io.on("connection", (socket)=>{
 });
 
 server.listen(PORT, ()=>{
-    console.log(`Server is running on port ${PORT}`);
+    console.log(`Server is running on http://localhost:${PORT}/`);
 });

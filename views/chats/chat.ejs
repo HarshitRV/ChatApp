@@ -1,22 +1,14 @@
 <% layout('layouts/boilerplate') %>
 <div class="chat">
-    <div class="chat__sidebar">
-
-    </div>
+    <div class="chat__sidebar"></div>
     <div class="chat__main">
         <div id="messages" class="chat__messages">
-            <div class="message" id="chats">
-                <!-- <p>
-                        <span class="message__name">Some User Name</span>
-                        <span class="message__meta">{{createdAt}}</span>
-                    </p>
-                    <p>{{message}}</p> -->
-            </div>
+            <div class="message" id="chats"></div>
         </div>
 
         <div class="compose">
             <form id="message-form">
-                <input name="message" id="message" placeholder="Message">
+                <input name="message" id="message" placeholder="Message" required autocomplete="off">
                 <button id="sendMessageBtn">Send</button>
             </form>
             <button id="share-location">Send location</button>

@@ -131,6 +131,8 @@ socket.on("location", (locObj)=>{
     chatDiv.insertAdjacentHTML('beforeend', html) 
 });
 
+
+
 sendMessageBtn.addEventListener("click", function(e){
     e.preventDefault();
 
@@ -145,7 +147,7 @@ sendMessageBtn.addEventListener("click", function(e){
     if(message.length > 0) socket.emit("sendMessage", { message, username }, (acknowledgement)=>{
         if(acknowledgement) {
           sendMessageBtn.removeAttribute("disabled");
-          return console.log(acknowledgement);
+          return alert(acknowledgement);
         }
         else console.log("Message Delivered.")
 
@@ -180,4 +182,12 @@ shareLocationBtn.addEventListener("click", ()=>{
     });
 });
 
-socket.emit("joinRoom", { username, room });
+socket.emit("joinRoom", { username, room }, (error)=>{
+  if(error) {
+    alert(error);
+    location.href = '/'
+  }
+  else {
+    alert("Joined the chat room")
+  }
+});
