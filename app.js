@@ -9,7 +9,17 @@ const cors = require("cors");
 const Filter = require("bad-words");
 
 // Utils imports.
-const { generateMessage, generateLocationMessage } = require("./utils/messages");
+const { 
+    generateMessage, 
+    generateLocationMessage 
+} = require("./utils/messages");
+
+const { 
+    addUser,
+    removeUser,
+    getUser,
+    getUsersInRoom 
+} = require("./utils/user")
 
 // Declarations.
 const app = express();
@@ -46,7 +56,7 @@ app.route("/chats")
 io.on("connection", (socket)=>{
     console.log("New websocket connection");
 
-      // Listen for joinRequest event
+    // Listen for joinRequest event
     socket.on("joinRoom", ({username, room})=>{
         socket.join(room);
         console.log(socket.rooms)
@@ -86,4 +96,4 @@ io.on("connection", (socket)=>{
 
 server.listen(PORT, ()=>{
     console.log(`Server is running on port ${PORT}`);
-})
+});
