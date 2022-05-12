@@ -1,5 +1,6 @@
 "use strict";
 console.log("chat.js loaded...")
+document.getElementById("page-title").textContent = "Chat Room";
 
 // Declarations -------------------------------------------------------------------
 const socket = io();
@@ -82,20 +83,51 @@ const formatDaysMessage = function (numDays, locale = 'en-US') {
       return formatMovementDates(numDays * 1000 * 60 * 60 * 24, locale)
     }
 }
+
+/**
+ * @description - This function is used to parse the url.
+ * @param {string} url - The url you want to parse.
+ * @returns {object} with the property names and value
+ */
+const getJsonFromUrl = url => {
+  if(!url) url = location.search;
+  var query = url.substr(1);
+  var result = {};
+  query.split("&").forEach(function(part) {
+    var item = part.split("=");
+    result[item[0]] = decodeURIComponent(item[1]);
+  });
+  return result;
+}
+
+// Globals ------------------------------------------------------------------------
+const { username, room } = getJsonFromUrl();
 // --------------------------------------------------------------------------------
 
+
+// --------------------------------------------------------------------------------
+// Listening for message event...
 socket.on("message", (msg)=>{
     console.log(msg);
-    const html = `<p>${msg.text} ${getCurrentTime(msg.createdAt)}</p>`;
+    // const html = `<p>${msg.text} : ${getCurrentTime(msg.createdAt)}</p>`;
+    const html = `  
+      <p>
+        <span class="message__name">${msg.username}</span>
+        <span class="message__meta">${getCurrentTime(msg.createdAt)}</span>
+      </p>
+      <p>${msg.text}</p>`
     chatDiv.insertAdjacentHTML('beforeend', html); 
 });
 
 // Events emit and listen ----------------------------------------------------------
-// Listen for location being sent by the server
-socket.on("location", (location)=>{
-    console.log(`https://www.google.com/maps/@${location.lat},${location.long}`);
-    const loc = `https://www.google.com/maps/@${location.lat},${location.long}`
-    const html = `<p><a href="${loc}" target=_blank>This is my location</a></p>`;
+// Listening for location event...
+socket.on("location", (locObj)=>{
+  const html = `  
+    <p>
+      <span class="message__name">${locObj.username}</span>
+      <span class="message__meta">${getCurrentTime(locObj.createdAt)}</span>
+    </p>
+    <p><a href="${locObj.url}" target=_blank>Location</a></p>`
     chatDiv.insertAdjacentHTML('beforeend', html) 
 });
 
@@ -109,8 +141,12 @@ sendMessageBtn.addEventListener("click", function(e){
     
     inputElement.value = "";
 
-    if(message.length > 0) socket.emit("sendMessage", message, (acknowledgement)=>{
-        if(acknowledgement) return console.log(acknowledgement)
+    // Emitting the event to the server
+    if(message.length > 0) socket.emit("sendMessage", { message, username }, (acknowledgement)=>{
+        if(acknowledgement) {
+          sendMessageBtn.removeAttribute("disabled");
+          return console.log(acknowledgement);
+        }
         else console.log("Message Delivered.")
 
         // Enable the button once the acknowlegement is received or
@@ -130,9 +166,11 @@ shareLocationBtn.addEventListener("click", ()=>{
 
     navigator.geolocation.getCurrentPosition((success, error)=>{
         if(!error) {
+            // Emitting the event to the server
             socket.emit("geoLocation", {
                 lat: success.coords.latitude,
-                long: success.coords.longitude
+                long: success.coords.longitude,
+                username
             }, (acknowledgement)=>{
                 console.log(acknowledgement);
             });
@@ -141,3 +179,5 @@ shareLocationBtn.addEventListener("click", ()=>{
         shareLocationBtn.removeAttribute("disabled");
     });
 });
+
+socket.emit("joinRoom", { username, room });
