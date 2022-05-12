@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node app.js",
     "devstart": "env-cmd -f ./configs/dev.env nodemon app.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "env-cmd -f ./configs/test.env jest --watchAll --runInBand --detectOpenHandles"
   },
   "author": "HarshitRV",
   "license": "ISC",
@@ -20,6 +20,7 @@
     "socket.io": "^4.5.0"
   },
   "devDependencies": {
-    "env-cmd": "^10.1.0"
+    "env-cmd": "^10.1.0",
+    "jest": "^28.1.0"
   }
 }
