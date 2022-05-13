@@ -65,22 +65,22 @@ io.on("connection", (socket)=>{
         if(!success) return cb(error);
 
         socket.join(user.room);
-        console.log(socket.rooms)
 
-        // Notifies the current user that he has joined the chat.
+        // * Notifies the current user that he has joined the chat.
         socket.emit("message", generateMessage("You joined the chat room.", user.username));
 
-        // Emit the roomData to the frontend
+        // * Emit the roomData to the frontend
         io.to(user.room).emit("roomData", {
             room: user.room,
             users: getUsersInRoom(user.room)
         });
 
-        // Notifies all other users withing the room except the one who joined the room.
+        // * Notifies all other users withing the room except the one who joined the room.
         socket.broadcast.to(room).emit("message", generateMessage(`joined the room!`, user.username));
 
         cb();
 
+        // Listen for the sendMessage event from frontend
         socket.on("sendMessage", ({ message, username }, cb)=>{
             const filter = new Filter();
 
@@ -100,15 +100,14 @@ io.on("connection", (socket)=>{
             
             cb("Your location was shared with everyone.");
         });
-   
+
   
         // Notifies everyone when a user leaves the chat.
         socket.on("disconnect", ()=>{
-            console.log(socket.rooms); 
-            const user = removeUser(socket.id);
-            if(user){
+            const { success, user } = removeUser(socket.id);
+            if(success){
                 io.to(user.room).emit("message", generateMessage("Left the chat.", username));
-                io.to(user.room).emit("userData", {
+                io.to(user.room).emit("roomData", {
                     room: user.room,
                     users: getUsersInRoom(user.room)
                 });

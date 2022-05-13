@@ -1,17 +1,47 @@
 "use strict";
+
 console.log("chat.js loaded...")
 document.getElementById("page-title").textContent = "Chat Room";
 
 // Declarations -------------------------------------------------------------------
 const socket = io();
-const inputElement = document.getElementById("message");
+const inputMessageElement = document.getElementById("message");
+const messagesDiv = document.getElementById("messages");
 const sendMessageBtn = document.getElementById("sendMessageBtn");
 const chatDiv = document.getElementById("chats");
 const shareLocationBtn = document.getElementById("share-location");
+const chatSidebar = document.getElementById("chat-sidebar");
 // --------------------------------------------------------------------------------
 
 
 // Utility Functions --------------------------------------------------------------
+
+/**
+ * @description - This function enables the autoscroll on new messages
+ */
+const autoscroll = () => {
+  // New message element
+  const $newMessage = messagesDiv.lastElementChild
+
+  // Height of the new message
+  const newMessageStyles = getComputedStyle($newMessage)
+  const newMessageMargin = parseInt(newMessageStyles.marginBottom)
+  const newMessageHeight = $newMessage.offsetHeight + newMessageMargin
+
+  // Visible height
+  const visibleHeight = messagesDiv.offsetHeight
+
+  // Height of messages container
+  const containerHeight = messagesDiv.scrollHeight
+
+  // How far have I scrolled?
+  const scrollOffset = messagesDiv.scrollTop + visibleHeight
+
+  if (containerHeight - newMessageHeight <= scrollOffset) {
+      messagesDiv.scrollTop = messagesDiv.scrollHeight
+  }
+}
+
 /**
  * @description - This function returns the current time in Intl format
  * @param {string} format - Locale time string
@@ -91,10 +121,10 @@ const formatDaysMessage = function (numDays, locale = 'en-US') {
  */
 const getJsonFromUrl = url => {
   if(!url) url = location.search;
-  var query = url.substr(1);
-  var result = {};
+  const query = url.slice(1);
+  const result = {};
   query.split("&").forEach(function(part) {
-    var item = part.split("=");
+    const item = part.split("=");
     result[item[0]] = decodeURIComponent(item[1]);
   });
   return result;
@@ -105,18 +135,52 @@ const { username, room } = getJsonFromUrl();
 // --------------------------------------------------------------------------------
 
 
-// --------------------------------------------------------------------------------
+// Emitting the joinRoom when a user joins the room.
+socket.emit("joinRoom", { username, room }, (error)=>{
+  if(error) {
+    alert(error);
+    location.href = '/'
+  }
+  else {
+    alert("Joined the chat room");
+  }
+});
+
+socket.on("roomData", ({ room, users })=>{
+
+  const getLiTags = (users) => {
+    let liTags = ''
+    users.forEach(user => {
+      liTags += `<li>${user.username}</li>`
+    });
+
+    return liTags
+  }
+
+  const html = `
+    <h2 class="room-title">room id - ${room}</h2>
+    <h3 class="list-title">Online Users</h3>
+    <ul class="users">
+      <li>${ getLiTags(users) }</li>
+    </ul>
+  `
+  chatSidebar.innerHTML = html
+
+});
+
 // Listening for message event...
 socket.on("message", (msg)=>{
-    console.log(msg);
-    // const html = `<p>${msg.text} : ${getCurrentTime(msg.createdAt)}</p>`;
-    const html = `  
-      <p>
-        <span class="message__name">${msg.username}</span>
-        <span class="message__meta">${getCurrentTime(msg.createdAt)}</span>
-      </p>
-      <p>${msg.text}</p>`
-    chatDiv.insertAdjacentHTML('beforeend', html); 
+    const html = `
+      <div class="messages">
+        <p>
+          <span class="message__name">${msg.username}</span>
+          <span class="message__meta">${getCurrentTime(msg.createdAt)}</span>
+        </p>
+        <p>${msg.text}</p>
+      </div> 
+    `
+    messagesDiv.insertAdjacentHTML('beforeend', html);
+    autoscroll(); 
 });
 
 // Events emit and listen ----------------------------------------------------------
@@ -128,7 +192,8 @@ socket.on("location", (locObj)=>{
       <span class="message__meta">${getCurrentTime(locObj.createdAt)}</span>
     </p>
     <p><a href="${locObj.url}" target=_blank>Location</a></p>`
-    chatDiv.insertAdjacentHTML('beforeend', html) 
+    messagesDiv.insertAdjacentHTML('beforeend', html) 
+    autoscroll();
 });
 
 
@@ -138,25 +203,27 @@ sendMessageBtn.addEventListener("click", function(e){
 
     // Setting the button to be disabled unless the acknowledgement is received or 
     // message is delivered.
-    sendMessageBtn.setAttribute("disabled", "disabled");
-    const message = inputElement.value;
     
-    inputElement.value = "";
+    const message = inputMessageElement.value;
+    
+    inputMessageElement.value = "";
 
     // Emitting the event to the server
-    if(message.length > 0) socket.emit("sendMessage", { message, username }, (acknowledgement)=>{
-        if(acknowledgement) {
-          sendMessageBtn.removeAttribute("disabled");
-          return alert(acknowledgement);
-        }
-        else console.log("Message Delivered.")
+    if(message.length > 0) {
+      sendMessageBtn.setAttribute("disabled", "disabled");
 
+      socket.emit("sendMessage", { message, username }, (acknowledgement)=>{
+        if(acknowledgement) {
+          alert(acknowledgement);
+        } else {
+          console.log("Message Delivered.");
+        }
         // Enable the button once the acknowlegement is received or
         // message is delivered
         sendMessageBtn.removeAttribute("disabled");
-        inputElement.focus();
-    });
-   
+        inputMessageElement.focus();
+      });
+    }
 });
 
 shareLocationBtn.addEventListener("click", ()=>{
@@ -164,11 +231,13 @@ shareLocationBtn.addEventListener("click", ()=>{
 
     // Diabling the share location button while the location
     // is being fetched.
-    shareLocationBtn.setAttribute("disabled", "disabled");
+    
 
     navigator.geolocation.getCurrentPosition((success, error)=>{
         if(!error) {
             // Emitting the event to the server
+            shareLocationBtn.setAttribute("disabled", "disabled");
+
             socket.emit("geoLocation", {
                 lat: success.coords.latitude,
                 long: success.coords.longitude,
@@ -180,14 +249,4 @@ shareLocationBtn.addEventListener("click", ()=>{
 
         shareLocationBtn.removeAttribute("disabled");
     });
-});
-
-socket.emit("joinRoom", { username, room }, (error)=>{
-  if(error) {
-    alert(error);
-    location.href = '/'
-  }
-  else {
-    alert("Joined the chat room")
-  }
 });

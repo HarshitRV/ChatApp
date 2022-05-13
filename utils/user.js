@@ -32,8 +32,6 @@ const addUser = ({ id, username, room }) => {
 
     users.push(user);
 
-    console.log('New array',users)
-
     return {
         success: true,
         user
@@ -54,8 +52,6 @@ const removeUser = id => {
     } 
 
     const user = users.splice(userIndex, 1)[0]
-    
-    console.log('Array after removing a user',users)
     
     return {
         success: true,
