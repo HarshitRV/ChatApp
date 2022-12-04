@@ -44,6 +44,12 @@ app.get("/", (req, res)=>{
     res.render("chats/join");
 });
 
+app.route("/status").get((req, res)=>{
+    res.status(200).json({
+        message: "Server is up and running."
+    })
+});
+
 app.route("/chats")
     .get((req, res)=>{
         res.render("chats/chat");
@@ -119,5 +125,5 @@ io.on("connection", (socket)=>{
 });
 
 server.listen(PORT, ()=>{
-    console.log(`Server is running on http://localhost:${PORT}/`);
+    console.log(`Server is running on PORT: ${PORT}`);
 });
